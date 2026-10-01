@@ -118,14 +118,22 @@ export function Scanner() {
           <div className="grid grid-cols-2 gap-3">{([['TIME_IN', 'Time In'], ['TIME_OUT', 'Time Out']] as const).map(([value, label]) => <label key={value} className={`cursor-pointer rounded-xl border p-4 text-center font-semibold has-disabled:cursor-default ${mode === value ? "border-teal-600 bg-teal-50 text-teal-900" : "border-slate-200 text-slate-500"}`}><input type="radio" name="mode" value={value} checked={mode === value} onChange={() => changeMode(value)} className="mr-2 accent-teal-700" />{label}</label>)}</div>
         </fieldset>
         <p className="mt-4 text-sm text-slate-500">The next scan will record <strong className="text-slate-800">{mode === "TIME_IN" ? "Time In" : "Time Out"}</strong>.</p>
-        <div className="mt-6" role="group" aria-label="Camera selection">
-          <p className="text-sm font-medium text-slate-600">Camera</p>
-          <div className="mt-3 grid grid-cols-2 gap-3">{([['user', 'Front camera'], ['environment', 'Back camera']] as const).map(([facing, label]) => <button key={facing} type="button" aria-pressed={cameraFacing === facing} disabled={pending || camera === "starting"} onClick={() => changeCamera(facing)} className={`rounded-xl border px-4 py-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700 disabled:cursor-wait disabled:opacity-60 ${cameraFacing === facing ? "border-teal-600 bg-teal-50 text-teal-900" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>{label}</button>)}</div>
-          <p className="mt-2 text-xs leading-5 text-slate-500">Front/back switching uses the cameras available on your device.</p>
-        </div>
         <div className="relative mt-6 aspect-[4/3] overflow-hidden rounded-xl bg-slate-900">
           <video ref={video} autoPlay muted playsInline aria-label="QR camera preview" className="absolute inset-0 h-full w-full object-cover" />
           {camera !== "active" && <div className="absolute inset-0 flex items-center justify-center px-8 text-center text-sm text-slate-300"><p>{camera === "starting" ? "Opening camera… Allow camera access if your browser asks." : cameraError || "Camera is off. Click Start camera to show the live preview."}</p></div>}
+          <button
+            type="button"
+            aria-label={`Switch to ${cameraFacing === "environment" ? "front" : "back"} camera`}
+            title={`Switch to ${cameraFacing === "environment" ? "front" : "back"} camera`}
+            disabled={pending || camera === "starting"}
+            onClick={() => changeCamera(cameraFacing === "environment" ? "user" : "environment")}
+            className="absolute right-3 top-3 flex size-10 items-center justify-center rounded-full border border-white/30 bg-slate-950/70 text-white shadow-sm transition hover:bg-slate-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-wait disabled:opacity-50"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="size-5">
+              <path d="M14 4h-4L8 7H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z" />
+              <path d="M8 13a4 4 0 0 1 7-2l1 1m0-3v3h-3M16 15a4 4 0 0 1-7 2l-1-1m0 3v-3h3" />
+            </svg>
+          </button>
         </div>
         <div className="mt-4 flex items-center gap-3">{camera === "idle" ? <button type="button" onClick={startCamera} disabled={pending} className="secondary-button">Start camera</button> : <button type="button" onClick={stopCamera} className="secondary-button">Stop camera</button>}<span role="status" className="text-xs text-slate-500">{camera === "starting" ? "Waiting for camera…" : camera === "active" ? pending ? "Recording scan…" : "Camera is live · Ready to scan" : "Camera is off"}</span></div>
         {cameraError && <p role="alert" className="mt-3 text-sm text-amber-800">{cameraError}</p>}
