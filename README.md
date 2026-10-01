@@ -32,6 +32,8 @@ Apply `202610010002_record_attendance.sql` before recording scans. Its staff-onl
 
 Open `/logbook` to filter by Philippine date, scan type, name, student number, or section. Names and sections reflect current student profiles. See the setup guide for a manual walkthrough covering duplicate rejection, Time Out, inactive students, and camera scanning. Hosted save flows and physical camera/USB behavior require manual verification. SMS is still pending.
 
+The scanner’s **Front camera** and **Back camera** buttons request the chosen camera and restart the live preview, releasing the previous stream first. Back camera is preferred initially; devices with only one camera may continue using their available camera. Test both buttons on a phone with front and rear cameras. The selected camera is retained when stopping/restarting the preview during the same visit to the scanner page.
+
 ## Getting Started
 
 First, run the development server:

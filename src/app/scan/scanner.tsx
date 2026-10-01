@@ -15,6 +15,7 @@ export function Scanner() {
   const [result, setResult] = useState<ScanResult | null>(null);
   const [camera, setCamera] = useState<"idle" | "starting" | "active">("starting");
   const [cameraEnabled, setCameraEnabled] = useState(true);
+  const [cameraFacing, setCameraFacing] = useState<"user" | "environment">("environment");
   const [cameraAttempt, setCameraAttempt] = useState(0);
   const [cameraError, setCameraError] = useState("");
   const video = useRef<HTMLVideoElement>(null);
@@ -72,7 +73,7 @@ export function Scanner() {
           error.name = "CameraUnavailableError";
           throw error;
         }
-        return navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: "environment" } } });
+        return navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: cameraFacing } } });
       },
       onStarting() { setCamera("starting"); setCameraError(""); },
       onReady() { setCamera("active"); },
@@ -81,9 +82,19 @@ export function Scanner() {
     });
     cameraSession.current = session;
     return () => { session.stop(); if (cameraSession.current === session) cameraSession.current = null; };
-  }, [cameraEnabled, cameraAttempt, submit]);
+  }, [cameraEnabled, cameraAttempt, cameraFacing, submit]);
 
   function startCamera() {
+    setCameraError("");
+    setCamera("starting");
+    setCameraEnabled(true);
+    setCameraAttempt((attempt) => attempt + 1);
+  }
+
+  function changeCamera(facing: "user" | "environment") {
+    if (busy.current || camera === "starting" || (facing === cameraFacing && camera === "active")) return;
+    cameraSession.current?.stop();
+    setCameraFacing(facing);
     setCameraError("");
     setCamera("starting");
     setCameraEnabled(true);
@@ -107,6 +118,11 @@ export function Scanner() {
           <div className="grid grid-cols-2 gap-3">{([['TIME_IN', 'Time In'], ['TIME_OUT', 'Time Out']] as const).map(([value, label]) => <label key={value} className={`cursor-pointer rounded-xl border p-4 text-center font-semibold has-disabled:cursor-default ${mode === value ? "border-teal-600 bg-teal-50 text-teal-900" : "border-slate-200 text-slate-500"}`}><input type="radio" name="mode" value={value} checked={mode === value} onChange={() => changeMode(value)} className="mr-2 accent-teal-700" />{label}</label>)}</div>
         </fieldset>
         <p className="mt-4 text-sm text-slate-500">The next scan will record <strong className="text-slate-800">{mode === "TIME_IN" ? "Time In" : "Time Out"}</strong>.</p>
+        <div className="mt-6" role="group" aria-label="Camera selection">
+          <p className="text-sm font-medium text-slate-600">Camera</p>
+          <div className="mt-3 grid grid-cols-2 gap-3">{([['user', 'Front camera'], ['environment', 'Back camera']] as const).map(([facing, label]) => <button key={facing} type="button" aria-pressed={cameraFacing === facing} disabled={pending || camera === "starting"} onClick={() => changeCamera(facing)} className={`rounded-xl border px-4 py-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700 disabled:cursor-wait disabled:opacity-60 ${cameraFacing === facing ? "border-teal-600 bg-teal-50 text-teal-900" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>{label}</button>)}</div>
+          <p className="mt-2 text-xs leading-5 text-slate-500">Front/back switching uses the cameras available on your device.</p>
+        </div>
         <div className="relative mt-6 aspect-[4/3] overflow-hidden rounded-xl bg-slate-900">
           <video ref={video} autoPlay muted playsInline aria-label="QR camera preview" className="absolute inset-0 h-full w-full object-cover" />
           {camera !== "active" && <div className="absolute inset-0 flex items-center justify-center px-8 text-center text-sm text-slate-300"><p>{camera === "starting" ? "Opening camera… Allow camera access if your browser asks." : cameraError || "Camera is off. Click Start camera to show the live preview."}</p></div>}

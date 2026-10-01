@@ -52,8 +52,9 @@ Use a student from the owner’s supplied roster for this walkthrough. Do not cr
 3. Record the same value again. Confirm there is no new logbook row.
 4. Wait at least 10 seconds, choose **Time Out**, and record it. Open **Logbook** and confirm both events and their Philippine timestamps.
 5. Open **Scanner** and allow camera access when the browser asks. The live preview opens automatically. Test with the QR printed or displayed on another device. The preview stays live after a scan; remove the QR from view for at least a second before presenting it again. Use **Stop camera** to release it and **Start camera** to restart or retry permission. Leaving the page also releases the camera.
-6. Deactivate the student and confirm a new scan is rejected. Reactivate when finished.
-7. Sign out and confirm `/scan`, `/logbook`, and QR pages return to `/login`.
+6. On a phone with two cameras, select **Front camera**, then **Back camera**, and confirm the preview switches. The previous camera is released before the next one opens. Devices with one camera may use that available camera for either preference.
+7. Deactivate the student and confirm a new scan is rejected. Reactivate when finished.
+8. Sign out and confirm `/scan`, `/logbook`, and QR pages return to `/login`.
 
 The QR encodes only the random reference, without student names or photos. Photo/profile lookup still requires staff access. A printed QR can be copied; this MVP retrieves the photo for the operator to check and does not automatically authenticate the student carrying it. Logbook names/sections reflect the current student profile.
 
