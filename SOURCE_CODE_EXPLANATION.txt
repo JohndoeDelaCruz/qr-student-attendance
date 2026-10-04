@@ -1,0 +1,599 @@
+1. THE MAIN IDEA
+----------------------------------------------------------------------
+
+The system helps school staff record when students enter and leave.
+
+A student's QR code works like a lookup number. When staff scan it, the
+system uses that number to find the student's saved profile. It then
+checks whether the scan is allowed before recording Time In or Time Out.
+
+If guardian SMS is enabled, the system also requests a text notification.
+A dedicated Android phone running SMSGate sends that text using its SIM.
+Students and guardians do not need to install SMSGate.
+
+The basic flow is:
+
+Student QR -> Find student -> Check scan rules -> Save attendance
+                                             -> Request guardian SMS
+
+Attendance and SMS have separate results. A saved attendance record does
+not mean the guardian has already received the text.
+
+
+2. THE MAIN TOOLS USED
+----------------------------------------------------------------------
+
+Next.js:
+  Organizes the website's pages and runs the work handled by the server.
+  The server is the part that checks requests and connects to services.
+
+React:
+  Makes buttons, forms, camera controls, and status updates interactive.
+
+TypeScript:
+  Helps developers catch mistakes, such as using the wrong kind of value.
+  The system also checks actual user input before accepting it.
+
+Tailwind CSS:
+  Controls the appearance, spacing, colors, and mobile-friendly layout.
+
+Supabase:
+  Provides the database, staff sign-in service, and student photo storage.
+  Think of the database as organized tables of saved school information.
+
+ZXing and qrcode:
+  ZXing reads QR codes through the camera. qrcode creates QR images.
+
+SMSGate:
+  Passes the website's SMS request to the configured Android sending phone.
+
+Vercel:
+  Hosts the website so staff can access it online.
+
+The project lists its tools and versions in package.json.
+
+
+3. WHERE TO FIND THE CODE
+----------------------------------------------------------------------
+
+src/app/
+  The website's pages, forms, and actions used by those pages.
+
+src/components/
+  Parts shared by several pages, such as navigation and photo displays.
+
+src/lib/
+  Reusable rules and functions for login, students, scanning, and SMS.
+  A function is a named set of instructions that performs a particular job.
+
+supabase/migrations/
+  SQL files that create database tables and rules. SQL is the language
+  used here to give instructions to the database.
+
+supabase/SETUP.md and supabase/SMS_SETUP.md
+  Instructions for setting up the database, accounts, photos, and SMS.
+
+tests/
+  Checks developers can run to catch mistakes without changing real data.
+
+public/
+  Static files the website can serve, such as images.
+
+A file ending in .tsx usually contains a page or visual part of the app.
+A .ts file usually contains supporting instructions. A .sql file contains
+instructions for the database. A .test.mjs file contains automated checks.
+
+
+4. LOGIN AND STAFF ACCESS
+----------------------------------------------------------------------
+
+Only approved staff can use the school workspace.
+
+The login process works like this:
+  1. Staff enter their email and password.
+  2. Supabase checks the login.
+  3. The system checks whether the account is listed as school staff.
+  4. Approved staff enter the dashboard. Other accounts cannot enter.
+
+An account can successfully sign in but still lack school staff access.
+That is why checking the email/password alone is not enough.
+
+Main files:
+
+src/app/login/page.tsx
+  Displays the login page.
+
+src/app/login/login-form.tsx
+  Handles the login form and its feedback.
+
+src/app/auth-actions.ts
+  signIn() processes login. signOut() ends the current browser session.
+
+src/lib/auth/staff-access.ts
+  Checks the login input, verified account, staff membership, and role.
+
+src/lib/auth/staff.ts
+  requireStaff() protects pages and actions. It sends signed-out users
+  to login and users without verified staff access to the access page.
+
+src/app/access/page.tsx
+  Explains missing staff access or a temporary problem checking access.
+
+There are two staff roles:
+
+Administrator:
+  Can add/edit students, manage photos and enrollment status, scan QR
+  cards, review attendance, and manage guardian SMS settings.
+
+Operator:
+  Can view profiles and QR cards, record scans, and review attendance
+  and SMS outcomes. Cannot edit students or manage SMS settings.
+
+The code checks permission when an action is requested, not just when
+showing a button. Database rules provide another permission check.
+Staff accounts and memberships are set up through Supabase; the website
+has no public registration or staff-account management screen.
+
+
+5. THE DASHBOARD AND SHARED PAGE PARTS
+----------------------------------------------------------------------
+
+src/app/page.tsx
+  Sends visitors from the root address to the dashboard, where access
+  is checked.
+
+src/app/layout.tsx
+  Provides the shared page structure, fonts, title, and global styles.
+
+src/app/dashboard/page.tsx
+  Shows the staff account and links to Students, Scanner, and Logbook.
+  It is a navigation overview, not a page of attendance statistics.
+
+src/components/workspace.tsx
+  Provides the shared header, navigation, staff name, and logout control.
+
+src/components/brand.tsx and src/components/logout-form.tsx
+  Display the branding and handle the logout button.
+
+src/components/student-photo.tsx
+  Shows a student photo. If no photo link is available, it shows initials.
+
+src/app/globals.css
+  Provides shared styling and the layout used when printing a QR card.
+
+
+6. ADDING AND EDITING STUDENTS
+----------------------------------------------------------------------
+
+Administrators can save the student number, name, section, enrollment
+status, optional guardian phone, and optional photo.
+
+Main files:
+
+src/app/students/page.tsx
+  Lists students, 20 at a time. Staff can search by name, student number,
+  or section, and filter active or inactive students.
+
+src/app/students/[id]/page.tsx
+  Displays one student's profile. Here, [id] means that student's internal
+  record identifier, rather than a fixed word in the address.
+
+src/app/students/new/page.tsx
+  Opens the administrator's add-student screen.
+
+src/app/students/[id]/edit/page.tsx
+  Loads the saved profile into the administrator's edit screen.
+
+src/app/students/student-form.tsx
+  Displays the fields, keeps entered values, and shows useful errors.
+  Controls are disabled while saving to reduce repeated submissions.
+
+src/app/students/actions.ts
+  Checks staff access, requests the save, and opens the saved profile
+  after a successful change.
+
+src/lib/students/management.ts
+  validateStudentForm() checks required fields, allowed lengths, status,
+  phone input, and photo choices.
+  saveStudent() checks administrator permission and saves the approved
+  fields. It reports a duplicate student number instead of accepting it.
+  studentSearchTerms() cleans search input before it is used in a query.
+
+The database creates a new student's internal ID and random QR reference.
+Those are different from the student number supplied by the school.
+
+The app has no student deletion feature. Making a student inactive keeps
+their profile and attendance history but prevents new entry/exit scans.
+
+Use only records supplied by the project owner. This source does not
+include an Excel import screen or instructions to add fabricated students.
+
+
+7. HOW STUDENT PHOTOS ARE HANDLED
+----------------------------------------------------------------------
+
+The photo file is kept in Supabase's private student-photos storage area.
+The student record stores a link reference to that file.
+
+The code accepts JPG, PNG, and WebP files up to 3 MB. It checks the file's
+opening bytes to see whether they match the declared image type. This
+check is not an antivirus scan.
+
+When editing a student:
+  - Changing a name, section, or guardian number keeps the current photo.
+  - Replace photo lets the administrator choose a new image.
+  - Remove current photo removes it only after that choice is saved.
+  - Uploading the existing photo again is unnecessary.
+
+saveStudent(), in src/lib/students/management.ts, saves the new record
+before trying to remove an old photo. It checks whether another record
+still uses that photo. If a record save fails after a new upload, it tries
+to remove the unused new file. File cleanup is best effort.
+
+src/lib/students/data.ts creates temporary links for displaying private
+photos. Profile/directory links last one hour; scanner photo links last
+five minutes. Authorized staff can request these links.
+
+A photo-loading problem does not cancel attendance that was already saved.
+
+
+8. HOW THE QR CARD WORKS
+----------------------------------------------------------------------
+
+src/lib/students/qr.ts
+  studentQrImage() creates a QR image from the saved random QR reference.
+
+src/app/students/[id]/qr/page.tsx
+  Builds the student card with the name, student number, section, photo,
+  and QR image.
+
+src/app/students/[id]/qr/qr-controls.tsx
+  Provides Print QR card, Download QR, and Copy QR value.
+
+The card displays student details, but the QR itself contains only the
+random reference. The system looks up the details after scanning it.
+
+The QR does not perform face recognition or prove who is holding the
+card. Staff should compare the person with the displayed profile/photo.
+
+
+9. HOW SCANNING AND ATTENDANCE SAVING WORK
+----------------------------------------------------------------------
+
+src/app/scan/page.tsx
+  Opens the scanner page for approved staff.
+
+src/app/scan/scanner.tsx
+  Handles Time In/Time Out selection, the camera preview, camera switching,
+  manual/USB input, and the latest result. Time In is selected initially.
+
+The camera prefers the back camera. A single small button changes front/
+back preference and releases the previous camera first. Availability
+still depends on the device and browser.
+
+Staff can also paste a QR value, or focus the input and use a USB scanner
+that types the value. Pressing Enter submits it. Every input method uses
+the same attendance checks.
+
+src/lib/attendance/camera.ts
+  Starts and stops the camera safely and explains camera errors.
+  It prevents the same visible QR from submitting on every camera frame.
+  Removing the QR from view for about one second allows another read.
+  Stopping the camera or leaving the page releases the camera stream.
+
+src/app/scan/actions.ts
+  scanStudent() checks staff access and starts the recording process.
+
+src/lib/attendance/scan.ts
+  recordScan() checks the QR format, calls the database recording function,
+  and returns the result with student details and a photo link if available.
+
+The important database function is record_student_scan(), defined in:
+  supabase/migrations/202610010002_record_attendance.sql
+
+It checks the following before saving:
+  - The person scanning is approved staff.
+  - The QR belongs to a registered student.
+  - The student is active.
+  - At least 10 seconds have passed since that student's latest scan.
+  - The student is not repeating the same scan type on the same day.
+  - The student has a Time In that day before a Time Out is recorded.
+
+The function records the time using the database clock and identifies
+the staff account that made the scan. It also makes simultaneous scans
+for the same student take turns, reducing duplicate records.
+
+For example, Time In followed by Time Out is allowed, subject to the
+10-second rule. Two consecutive Time In records that day are rejected.
+More than one entry/exit cycle can be recorded in a day.
+
+A rejected scan does not add attendance or request another SMS.
+If a save cannot be confirmed, staff are told to check the logbook before
+trying again. Browser camera access requires localhost or HTTPS.
+
+
+10. WHAT THE DATABASE STORES
+----------------------------------------------------------------------
+
+The five main application tables are:
+
+staff_users
+  The approved staff accounts, display names, and roles.
+
+students
+  Student identifiers, QR references, profile details, enrollment status,
+  and optional photo reference and guardian number.
+
+attendance_logs
+  Each saved Time In/Time Out, its student, its recorded time, and the
+  staff account that scanned it.
+
+sms_settings
+  The administrator's guardian SMS on/off setting.
+
+sms_notifications
+  One notification record for each new attendance event after SMS setup.
+  It tracks the message's status, attempts, and next eligible attempt time.
+  When SMS is enabled, it also keeps the name and guardian number from
+  that scan, so later profile edits do not change an already queued SMS.
+
+Database setup uses these scripts, in this order:
+  202610010001_initial_schema.sql: creates the first tables and permissions.
+  202610010002_record_attendance.sql: adds the attendance recording rules.
+  202610020001_guardian_sms.sql: adds SMS tables and queue processing rules.
+
+The full files are in supabase/migrations/.
+
+These scripts are called migrations. They establish the database layout
+and rules; uploading them to GitHub does not run them on Supabase.
+The SMS script does not send messages for old attendance records.
+
+The database limits access according to the staff account and its role.
+The app's ordinary signed-in clients cannot bypass the recording function
+by inserting attendance directly.
+
+
+11. HOW GUARDIAN SMS IS SENT
+----------------------------------------------------------------------
+
+After a valid scan, the database saves attendance and creates its SMS
+tracking record together. This automatic step is called a trigger.
+
+If SMS was off, the tracking record says Disabled. A missing guardian
+number produces Skipped. Enabling SMS later does not replay those events.
+
+The normal SMS sending steps are:
+  1. The scanner returns the saved attendance result to staff.
+  2. The server starts work on that event's waiting notification.
+  3. It checks and formats the guardian number.
+  4. It creates text containing the student name, Time In/Out, and time.
+  5. It encrypts the text and recipient number before sending to SMSGate.
+  6. The configured Android phone decrypts it and sends through its SIM.
+  7. The server saves the submission outcome separately from attendance.
+
+Main files:
+
+src/lib/sms/server.ts
+  Connects SMS work to the saved attendance record and uses private
+  server credentials. It also supports pending processing and status checks.
+
+src/lib/sms/queue.ts
+  Handles waiting notifications. A queue is simply stored work waiting
+  to be processed. The code makes sure two workers do not claim the same
+  notification at the same time. A processing batch handles up to three.
+
+src/lib/sms/gateway.ts
+  Checks SMS configuration, prepares phone numbers, creates and encrypts
+  the text, sends the request, and translates the returned status.
+
+The text and phone number are encrypted separately. Encryption makes
+them unreadable to the gateway until the sending phone unlocks them.
+The phone and website must use exactly the same encryption passphrase.
+A mismatch can cause BAD_DECRYPT, meaning the phone cannot unlock the
+message. The cloud password and encryption passphrase are separate settings.
+
+This protection applies to the gateway request. The guardian receives
+ordinary carrier SMS; the code does not encrypt every database field.
+
+SMS problems do not remove attendance that was already saved. The initial
+attendance save and tracking-record creation must both succeed in the
+database; a problem in that database step can prevent the save itself.
+
+To reduce duplicate texts, each notification has a fixed identifier.
+If the gateway already has it, the system checks it rather than making
+a second message with a different identifier.
+
+A gateway request times out after eight seconds. If acceptance is unclear,
+the app shows Check gateway and does not automatically resend. Otherwise,
+a text that actually succeeded could accidentally be sent again.
+
+A definite rate-limit rejection can be tried again later, up to three
+attempts with a one-minute wait between eligible attempts. There is no
+independent scheduled retry service. Administrators can process waiting
+work from the logbook. Pending work older than one hour is marked expired
+when queue processing runs; submitted messages also carry a one-hour expiry.
+
+
+12. THE LOGBOOK AND MESSAGE STATUS UPDATES
+----------------------------------------------------------------------
+
+src/app/logbook/page.tsx
+  Lists attendance, 20 records at a time, with guardian SMS outcomes.
+  Staff can filter the date, Time In/Out, name, number, or section.
+
+src/lib/attendance/dates.ts
+  Uses Philippine time for daily checks, date filters, and displayed times.
+
+src/app/logbook/sms-controls.tsx and src/app/logbook/sms-actions.ts
+  Let administrators enable/disable SMS and process pending work.
+  The server checks administrator permission before accepting those actions.
+
+src/app/logbook/sms-status-refresh.tsx
+  Checks unfinished visible message outcomes about every 15 seconds after
+  each check completes. It updates the displayed information automatically,
+  so staff do not need to reload the browser manually.
+
+Each server request checks at most three eligible outcomes. A record
+normally waits at least 30 seconds between checks. This means all rows
+may not update at exactly the same time.
+
+Checks pause when the logbook tab is hidden and stop after leaving the
+page. These checks read message status; they do not send or resend texts.
+A pending message needs dispatch, not just a status check.
+
+The labels mean:
+  Disabled: SMS was off when the scan was recorded.
+  Pending: Waiting for a sending attempt.
+  Submitting: The server has started an attempt.
+  Gateway queued: SMSGate accepted it; sending is not confirmed yet.
+  Sent: The phone reports sending; receipt is not confirmed yet.
+  Delivered: The gateway reports delivery to the guardian's device.
+  Failed: Preparation, submission, or sending failed, or it was cancelled.
+  Check gateway: It is unclear whether the gateway accepted the request.
+  Skipped: The guardian number is missing or invalid.
+  Expired: Pending work passed the allowed submission time.
+  No notification: The record predates SMS tracking.
+
+Sent and Delivered have different meanings. Confirmation depends on
+the phone and carrier, so instant delivery is not guaranteed.
+
+Logbook names and sections come from the current student profile.
+An already queued SMS keeps the name and number saved when it was created.
+
+
+13. CONNECTION SETTINGS AND PRIVATE DATA
+----------------------------------------------------------------------
+
+src/lib/supabase/config.ts
+  Reads the project connection settings.
+
+src/lib/supabase/client.ts and src/lib/supabase/server.ts
+  Connect browser-side or server-side work to Supabase. The ordinary
+  server connection uses the signed-in staff member's access.
+
+src/proxy.ts and src/lib/supabase/proxy.ts
+  Keep login-session information up to date. Protected pages and actions
+  still perform their own staff access checks.
+
+The required environment variables are:
+  NEXT_PUBLIC_SUPABASE_URL: the address of the Supabase project.
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: its public application key.
+  SUPABASE_SECRET_KEY: private server access for SMS work.
+  SMSGATE_USERNAME: the sending phone's cloud account username.
+  SMSGATE_PASSWORD: that account's password.
+  SMSGATE_DEVICE_ID: identifies the registered sending phone.
+  SMSGATE_ENCRYPTION_PASSPHRASE: matches the phone's passphrase.
+  SMS_ENABLED: set to true when server SMS sending is intended.
+
+An environment variable is a named setting supplied to the application.
+Local settings are in .env.local. Online settings are entered in Vercel.
+Changing online settings requires a new deployment to take effect.
+
+Normal sending requires valid server settings, SMS_ENABLED=true, and
+the administrator's enabled setting in the logbook.
+
+Private credentials stay on the server. The public Supabase key is
+intended for browser use, with database permissions controlling access.
+The separate private SMS connection has broader access and must remain
+private. .gitignore excludes .env.local from GitHub.
+
+Student photos use private storage. Staff access and database permissions
+protect records. Signed-in clients can read allowed SMS outcome fields,
+but not the private name/phone copies in the SMS tracking table.
+Authorized staff can still view guardian numbers in student profiles.
+
+The sending phone needs internet, power, cellular signal, SMS permission,
+and a working SIM with SMS credit or allowance. Carrier charges still apply.
+SMS should be disabled in test deployments that are not intended to send.
+
+
+14. CONFIGURATION FILES AND TESTS
+----------------------------------------------------------------------
+
+package.json and package-lock.json
+  List the tools and installation versions. The main commands are:
+    npm run dev: starts local development.
+    npm run build: prepares the production application.
+    npm start: starts an already built application.
+    npm run lint: checks source-code style and common mistakes.
+    npm test: runs automated checks.
+
+next.config.ts
+  Allows a 4 MB form request so a permitted 3 MB photo and the other
+  form fields can fit. The photo itself still has the 3 MB limit.
+
+tsconfig.json, eslint.config.mjs, and postcss.config.mjs
+  Configure TypeScript checks, source checks, and styling tools.
+
+.env.example
+  Shows setting names and placeholders, without working credentials.
+
+AGENTS.md and CLAUDE.md
+  Guide developers, including the rule to use supplied student data.
+  They are not part of the login or attendance process at runtime.
+
+The main test files are:
+  tests/auth.test.mjs: checks login and staff access rules.
+  tests/students.test.mjs: checks profile validation and photo handling.
+  tests/attendance.test.mjs: checks QR input, dates, and recording results.
+  tests/attendance-db.test.mjs: checks attendance rules in a temporary database.
+  tests/camera.test.mjs: checks camera cleanup and repeated QR reading.
+  tests/sms.test.mjs: checks SMS requests, outcomes, and status updates.
+  tests/sms-db.test.mjs: checks the SMS database rules and queue.
+
+Tests use pretend service responses or temporary databases, separate
+from the real school database. They do not create real student records
+or send actual SMS. Real camera and SMS delivery still need an intended
+live check using supplied records and confirmed recipients.
+
+
+15. WHAT THE SYSTEM CURRENTLY DOES NOT DO
+----------------------------------------------------------------------
+
+The source does not provide classroom attendance per subject, automatic
+absence marking, face recognition, a guardian portal, student deletion,
+attendance exports, or an Excel import screen.
+
+It supports one guardian number per student. Staff choose Time In or
+Time Out; the system checks the order rather than choosing automatically.
+Daily checks use Philippine time. Overnight sessions are not automatically
+carried over into the next day's attendance sequence.
+
+Saving and checking records require a connection. The source has no
+offline attendance saving and later synchronization feature.
+
+SMS depends on the sending phone and carrier. Waiting notifications can
+need administrator processing if the normal callback was interrupted.
+Delivery-status checking operates while the logbook page is visible,
+rather than running continuously after the page is closed.
+
+
+16. A SHORT EXPLANATION FOR THE CLIENT TO PRESENT
+----------------------------------------------------------------------
+
+"Each student has a QR reference linked to their profile. School staff
+scan it to record Time In or Time Out. The system checks the student is
+active and that the scan follows the attendance rules before saving it.
+When guardian SMS is enabled, the saved scan also creates a notification.
+The website sends an encrypted request to our configured Android phone,
+which sends the text through its SIM. Staff review attendance and SMS
+outcomes in the logbook. The logbook updates message status automatically
+while open, but saved attendance and confirmed SMS delivery are different
+results."
+
+For a quick code walkthrough, open these files in order:
+  1. src/app/login/page.tsx: where staff enter the system.
+  2. src/lib/auth/staff-access.ts: how staff access is checked.
+  3. src/lib/students/management.ts: how profiles and photos are saved.
+  4. src/lib/students/qr.ts: what is placed inside the QR.
+  5. src/app/scan/scanner.tsx: how staff read and submit a QR.
+  6. src/app/scan/actions.ts: how recording and SMS work are connected.
+  7. The attendance SQL script: the rules for accepting a scan.
+  8. src/lib/sms/gateway.ts: how the SMS request is prepared and submitted.
+  9. src/app/logbook/page.tsx: how attendance and SMS outcomes are displayed.
+
+All file paths above are relative to the repository listed at the top.
+This document explains the reviewed code. It does not confirm the live
+website's settings or certify delivery of any particular SMS.
+
+END OF SOURCE CODE EXPLANATION
