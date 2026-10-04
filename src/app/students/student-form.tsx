@@ -20,6 +20,11 @@ export function StudentForm({ student, photoUrl }: { student?: Student; photoUrl
     status: student?.status ?? "active", guardian_phone: student?.guardian_phone ?? "",
   });
   const [state, formAction, pending] = useActionState(saveStudentAction.bind(null, student?.id ?? null), { error: "", fieldErrors: {} });
+  const hasCurrentPhoto = Boolean(student?.photo_path);
+  const [replacePhoto, setReplacePhoto] = useState(false);
+  const [removePhoto, setRemovePhoto] = useState(false);
+  const [newPhotoSelected, setNewPhotoSelected] = useState(false);
+  const showPhotoUpload = !hasCurrentPhoto || replacePhoto;
   function update(field: keyof StudentValues, value: string) {
     setValues((previous) => ({ ...previous, [field]: value }));
   }
@@ -27,7 +32,7 @@ export function StudentForm({ student, photoUrl }: { student?: Student; photoUrl
 
   return (
     <form action={formAction} aria-busy={pending} className="max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
-      {state.error && <div role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-800">{state.error}<p className="mt-1">If you selected a photo, choose it again before retrying.</p></div>}
+      {state.error && <div role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm leading-6 text-red-800">{state.error}{newPhotoSelected && <p className="mt-1">Choose the new photo again before retrying. Your previously saved photo is unchanged.</p>}</div>}
       <fieldset disabled={pending} className="grid gap-6 sm:grid-cols-2">
         <legend className="mb-6 text-lg font-semibold">Student details</legend>
         {fields.map(({ key, label, limit, placeholder }) => (
@@ -51,12 +56,18 @@ export function StudentForm({ student, photoUrl }: { student?: Student; photoUrl
           {state.fieldErrors?.guardian_phone && <p id="guardian_phone-error" className="mt-2 text-xs text-red-700">{state.fieldErrors.guardian_phone}</p>}
         </div>
         <div className="border-t border-slate-100 pt-6 sm:col-span-2">
-          <label htmlFor="photo" className="mb-3 block text-sm font-medium text-slate-700">Student photo <span className="font-normal text-slate-400">(optional)</span></label>
-          {student?.photo_path && <div className="mb-4 flex items-center gap-4"><StudentPhoto url={photoUrl} name={`${student.first_name} ${student.last_name}`} /><span className="text-xs text-slate-500">Current photo</span></div>}
-          <input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" className="block w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-50 file:px-3 file:py-2 file:font-medium file:text-teal-800 focus-visible:outline-2 focus-visible:outline-teal-700" aria-invalid={Boolean(state.fieldErrors?.photo)} aria-describedby="photo-help photo-error" />
-          <p id="photo-help" className="mt-2 text-xs text-slate-500">JPG, PNG, or WebP. Maximum 3 MB.</p>
+          <label htmlFor={showPhotoUpload ? "photo" : undefined} className="mb-3 block text-sm font-medium text-slate-700">Student photo <span className="font-normal text-slate-400">(optional)</span></label>
+          {student?.photo_path && <>
+            <div className="mb-3 flex items-center gap-4"><StudentPhoto url={photoUrl} name={`${student.first_name} ${student.last_name}`} /><span className="text-xs text-slate-500">Current photo</span></div>
+            <p className="mb-4 text-xs leading-5 text-slate-500">{removePhoto ? "The current photo will be removed when you save." : "Your current photo will be kept when you save changes. No upload is needed."}</p>
+            <button type="button" className="secondary-button mb-4" aria-expanded={replacePhoto} aria-controls="photo-upload" onClick={() => { setReplacePhoto((previous) => !previous); setRemovePhoto(false); setNewPhotoSelected(false); }}>{replacePhoto ? "Keep current photo" : "Replace photo"}</button>
+          </>}
+          {showPhotoUpload && <div id="photo-upload">
+            <input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setNewPhotoSelected(Boolean(event.target.files?.length))} className="block w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-teal-50 file:px-3 file:py-2 file:font-medium file:text-teal-800 focus-visible:outline-2 focus-visible:outline-teal-700" aria-invalid={Boolean(state.fieldErrors?.photo)} aria-describedby="photo-help photo-error" />
+            <p id="photo-help" className="mt-2 text-xs text-slate-500">JPG, PNG, or WebP. Maximum 3 MB.{hasCurrentPhoto && " Leave blank to keep your current photo."}</p>
+          </div>}
           {state.fieldErrors?.photo && <p id="photo-error" className="mt-2 text-xs text-red-700">{state.fieldErrors.photo}</p>}
-          {student?.photo_path && <label className="mt-4 flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="remove_photo" className="size-4 accent-teal-700" />Remove current photo</label>}
+          {hasCurrentPhoto && <label className="mt-4 flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="remove_photo" checked={removePhoto} onChange={(event) => { setRemovePhoto(event.target.checked); if (event.target.checked) { setReplacePhoto(false); setNewPhotoSelected(false); } }} className="size-4 accent-teal-700" />Remove current photo</label>}
         </div>
       </fieldset>
       <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-6">

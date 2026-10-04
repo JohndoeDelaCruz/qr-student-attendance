@@ -6,7 +6,7 @@ Copy `.env.example` to `.env.local` and fill in your project's URL and publishab
 
 The Supabase packages are installed. Use `createClient` from `@/lib/supabase/client` in Client Components, or the async `createClient` from `@/lib/supabase/server` in Server Components, Server Actions, and Route Handlers. `src/proxy.ts` refreshes auth cookies; it does not restrict access to pages.
 
-The database migrations are in `supabase/migrations`. Follow [the dashboard setup guide](supabase/SETUP.md) to apply them in order, create private photo storage, and provision the first admin account. These files do not automatically change the hosted project. If the initial schema already exists, apply only `202610010002_record_attendance.sql` to enable scanning.
+The database migrations are in `supabase/migrations`. Follow [the dashboard setup guide](supabase/SETUP.md) to apply them in order, create private photo storage, and provision the first admin account. These files do not automatically change the hosted project. If the initial schema already exists, apply `202610010002_record_attendance.sql` to enable scanning, then `202610020001_guardian_sms.sql` for guardian notifications.
 
 See the [Supabase Next.js server-side client guide](https://supabase.com/docs/guides/auth/server-side/creating-a-client).
 
@@ -30,9 +30,17 @@ From a student profile, open **Student QR** to print the card, download the QR P
 
 Apply `202610010002_record_attendance.sql` before recording scans. Its staff-only RPC locks the student row to serialize scans, supplies the timestamp and scanner identity, rejects inactive/unknown students, rejects scans within 10 seconds, and prevents consecutive identical events that day. The first event of a Philippine calendar day must be Time In; multiple entry/exit cycles are allowed. Overnight attendance and automatic identification of the QR holder are outside this MVP. No service-role key is needed.
 
-Open `/logbook` to filter by Philippine date, scan type, name, student number, or section. Names and sections reflect current student profiles. See the setup guide for a manual walkthrough covering duplicate rejection, Time Out, inactive students, and camera scanning. Hosted save flows and physical camera/USB behavior require manual verification. SMS is still pending.
+Open `/logbook` to filter by Philippine date, scan type, name, student number, or section. Names and sections reflect current student profiles. See the setup guide for a manual walkthrough covering duplicate rejection, Time Out, inactive students, and camera scanning. Hosted save flows and physical camera/USB behavior require manual verification.
 
 The scanner’s small camera-switch button in the preview’s upper-right corner toggles between front and back cameras, releasing the previous stream first. Its accessible label and tooltip identify the camera it will switch to. Back camera is preferred initially; devices with only one camera may continue using their available camera. Test switching both ways on a phone with front and rear cameras. The selected camera is retained when stopping/restarting the preview during the same visit to the scanner page.
+
+## Guardian SMS
+
+Successful scans can automatically request an SMS through a dedicated Android phone running SMSGate. Apply the additive guardian SMS migration and follow [SMS setup](supabase/SMS_SETUP.md) to configure the cloud gateway, matching encryption passphrase, private Supabase secret key, and server environment. Sending starts disabled and requires both server configuration and an administrator enabling it in Logbook. The notification contains the recorded Time In/Out and Philippine timestamp, with text/recipient encrypted before gateway submission.
+
+Logbook shows notification outcomes independently of attendance. While the page is visible, unresolved SMS statuses update automatically without a browser refresh, using status-only checks of up to 3 notifications per request. Both staff roles receive these updates; hidden tabs pause checks. One durable notification per attendance event and atomic server claims prevent duplicate submissions. Unknown gateway acceptance is never automatically retried. Queued/sent statuses do not imply delivery. Automatic dispatch runs after each successful app scan; admins can process pending work in Logbook if a callback was interrupted. There is no scheduled worker in this MVP. Neither installation nor activation sends historical/disabled notifications. Carrier SMS charges/allowances still apply.
+
+Automated tests mock all gateway HTTP and use isolated PostgreSQL. They never send real SMS or create hosted test students. Live SMS delivery remains a manual check with intended supplied records/recipients.
 
 ## Getting Started
 

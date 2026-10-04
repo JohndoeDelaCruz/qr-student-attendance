@@ -98,6 +98,30 @@ test("deactivation preserves the QR token and existing photo", async () => {
   assert.equal("photo_path" in calls.records[0], false);
   assert.equal(calls.removals.length, 0);
 });
+
+test("editing profile fields keeps the stored photo without an upload, including an unselected file input", async () => {
+  for (const photo of [undefined, new File([], "", { type: "application/octet-stream" })]) {
+    const { client, calls } = backend({ existing: { id: studentId, photo_path: "students/old.png" } });
+    const changes = form({ section: "Grade 12 B", guardian_phone: "+639123456789", photo_path: "forged.png" });
+    if (photo) changes.set("photo", photo);
+    const result = await saveStudent(client, admin, changes, studentId);
+    assert.equal(result.success, true);
+    assert.equal(calls.records[0].section, "Grade 12 B");
+    assert.equal(calls.records[0].guardian_phone, "+639123456789");
+    assert.equal("photo_path" in calls.records[0], false);
+    assert.deepEqual(calls.uploads, []);
+    assert.deepEqual(calls.removals, []);
+  }
+});
+
+test("an explicitly uploaded replacement changes the photo only after saving", async () => {
+  const { client, calls } = backend({ existing: { id: studentId, photo_path: "students/old.png" } });
+  const result = await saveStudent(client, admin, form({ photo: png }), studentId);
+  assert.equal(result.success, true);
+  assert.equal(calls.uploads.length, 1);
+  assert.equal(calls.records[0].photo_path, calls.uploads[0].path);
+  assert.deepEqual(calls.removals, ["students/old.png"]);
+});
 test("removing a photo clears the reference and cleans only unreferenced managed images", async () => {
   for (const references of [0, 1]) {
     const { client, calls } = backend({ existing: { id: studentId, photo_path: "students/old.png" }, references });

@@ -153,6 +153,7 @@ export function Scanner() {
           </>}
         </div>
         <p className="mt-8 border-t border-slate-100 pt-5 text-xs leading-6 text-slate-500">The camera stays live between scans. Remove the QR from view for a moment before scanning it again. Repeat entries are also checked by the database.</p>
+        <p className="mt-3 text-xs leading-6 text-slate-500">When guardian SMS is enabled, successful scans request a notification automatically. Check the logbook for SMS status; recording attendance does not confirm message delivery.</p>
       </section>
     </div>
   );

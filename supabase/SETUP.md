@@ -16,7 +16,9 @@ Only admins can create/edit students; operators can read students and record att
 
 After the initial schema, open a **new SQL Editor query**, paste the complete contents of `migrations/202610010002_record_attendance.sql`, and click **Run**. If the initial tables already exist, run only this second migration. It adds the `record_student_scan` function and removes direct browser inserts into the logbook; existing records are preserved.
 
-Staff explicitly choose **Time In** or **Time Out**. The database serializes scans for each student, rejects repeats within 10 seconds, rejects consecutive scans of the same type that day, and requires a Time In before a Time Out that day. Multiple entry/exit cycles per day are allowed. Days use `Asia/Manila`; overnight visits are not supported by this MVP. The timestamp and staff identity come from the database. SMS is not implemented.
+Staff explicitly choose **Time In** or **Time Out**. The database serializes scans for each student, rejects repeats within 10 seconds, rejects consecutive scans of the same type that day, and requires a Time In before a Time Out that day. Multiple entry/exit cycles per day are allowed. Days use `Asia/Manila`; overnight visits are not supported by this MVP. The timestamp and staff identity come from the database.
+
+For guardian SMS, next apply `migrations/202610020001_guardian_sms.sql` in a new query. It preserves existing records and adds a disabled-by-default notification queue; no historical SMS are created. Follow [the SMSGate setup guide](SMS_SETUP.md) for Android configuration, private environment variables, enabling SMS, and an intended live test.
 
 ## 2. Create private photo storage
 
