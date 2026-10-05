@@ -6,7 +6,7 @@ Copy `.env.example` to `.env.local` and fill in your project's URL and publishab
 
 The Supabase packages are installed. Use `createClient` from `@/lib/supabase/client` in Client Components, or the async `createClient` from `@/lib/supabase/server` in Server Components, Server Actions, and Route Handlers. `src/proxy.ts` refreshes auth cookies; it does not restrict access to pages.
 
-The database migrations are in `supabase/migrations`. Follow [the dashboard setup guide](supabase/SETUP.md) to apply them in order, create private photo storage, and provision the first admin account. These files do not automatically change the hosted project. If the initial schema already exists, apply `202610010002_record_attendance.sql` to enable scanning, then `202610020001_guardian_sms.sql` for guardian notifications.
+The database migrations are in `supabase/migrations`. Follow [the dashboard setup guide](supabase/SETUP.md) to apply them in order, create private photo storage, and provision the first admin account. These files do not automatically change the hosted project. If the initial schema already exists, apply `202610010002_record_attendance.sql` to enable scanning, then `202610020001_guardian_sms.sql` for guardian notifications, and `202610050001_student_archive.sql` for student archiving. Apply the archive migration before deploying this version.
 
 See the [Supabase Next.js server-side client guide](https://supabase.com/docs/guides/auth/server-side/creating-a-client).
 
@@ -19,6 +19,8 @@ Run `npm test` with Node.js 22.18+ to check authorization boundaries, form valid
 ## Student management
 
 Open `/students` from the workspace navigation. Staff can search names, student numbers, and sections, filter enrollment status, and view profiles. Administrators can add and edit students, deactivate/reactivate enrollment, and upload, replace, or remove photos. There is no student deletion flow; attendance history is preserved.
+
+Administrators can select **Archive student** on a profile and confirm the action. Archiving preserves the profile, photo, QR token, enrollment status, attendance, and existing SMS records. Archived students are excluded from the default directory and cannot record new scans. Use the **Show → Archived students** filter to find them, then select **Restore student** on a profile. Restoring preserves enrollment status; inactive students remain unable to scan until activated. The archive field is changed only through the administrator-checked `set_student_archived` RPC, which locks the same student row as scanning. Apply `202610050001_student_archive.sql` first; it adds the archive timestamp and updates the scan rules without deleting records. Archiving/restoring itself does not send SMS.
 
 Photo uploads use the private `student-photos` bucket and signed display URLs. The app accepts JPG/PNG/WebP up to 3 MB, checks their signatures, and uses generated object names. The bucket from the dashboard setup must exist. New uploads are cleaned up if a record save fails; replaced managed images are cleaned up only after a successful save and a reference check. Storage cleanup is best effort.
 

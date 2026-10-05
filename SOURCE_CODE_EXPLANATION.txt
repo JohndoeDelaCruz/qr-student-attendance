@@ -173,6 +173,8 @@ Main files:
 src/app/students/page.tsx
   Lists students, 20 at a time. Staff can search by name, student number,
   or section, and filter active or inactive students.
+  The directory normally shows current students. The Show filter can
+  display archived students or everyone.
 
 src/app/students/[id]/page.tsx
   Displays one student's profile. Here, [id] means that student's internal
@@ -191,6 +193,12 @@ src/app/students/student-form.tsx
 src/app/students/actions.ts
   Checks staff access, requests the save, and opens the saved profile
   after a successful change.
+  It also handles archive and restore requests after checking staff access.
+
+src/app/students/archive-controls.tsx
+  Displays the Archive student or Restore student button on the profile.
+  Before archiving, it explains what will happen and asks for confirmation.
+  It shows progress and errors while the change is saved.
 
 src/lib/students/management.ts
   validateStudentForm() checks required fields, allowed lengths, status,
@@ -198,12 +206,21 @@ src/lib/students/management.ts
   saveStudent() checks administrator permission and saves the approved
   fields. It reports a duplicate student number instead of accepting it.
   studentSearchTerms() cleans search input before it is used in a query.
+  setStudentArchived() checks administrator permission and asks the
+  database to archive or restore only the selected student.
 
 The database creates a new student's internal ID and random QR reference.
 Those are different from the student number supplied by the school.
 
 The app has no student deletion feature. Making a student inactive keeps
 their profile and attendance history but prevents new entry/exit scans.
+
+Archiving also keeps the student's photo, QR reference, guardian details,
+and attendance history. It hides the student from the normal directory
+and blocks new scans. An administrator can use the Archived students
+filter, open the profile, and select Restore student to bring them back.
+Restoring keeps their enrollment status: an inactive student stays inactive.
+Archiving or restoring does not request an SMS.
 
 Use only records supplied by the project owner. This source does not
 include an Excel import screen or instructions to add fabricated students.
@@ -290,11 +307,14 @@ src/lib/attendance/scan.ts
 
 The important database function is record_student_scan(), defined in:
   supabase/migrations/202610010002_record_attendance.sql
+The student archive migration below updates this function to check whether
+the student has been archived.
 
 It checks the following before saving:
   - The person scanning is approved staff.
   - The QR belongs to a registered student.
   - The student is active.
+  - The student is not archived.
   - At least 10 seconds have passed since that student's latest scan.
   - The student is not repeating the same scan type on the same day.
   - The student has a Time In that day before a Time Out is recorded.
@@ -323,6 +343,8 @@ staff_users
 students
   Student identifiers, QR references, profile details, enrollment status,
   and optional photo reference and guardian number.
+  archived_at holds the time the student was archived. An empty value
+  means the student is in the current directory.
 
 attendance_logs
   Each saved Time In/Time Out, its student, its recorded time, and the
@@ -341,6 +363,8 @@ Database setup uses these scripts, in this order:
   202610010001_initial_schema.sql: creates the first tables and permissions.
   202610010002_record_attendance.sql: adds the attendance recording rules.
   202610020001_guardian_sms.sql: adds SMS tables and queue processing rules.
+  202610050001_student_archive.sql: adds archiving and restoring, and
+    prevents archived students from recording new attendance.
 
 The full files are in supabase/migrations/.
 

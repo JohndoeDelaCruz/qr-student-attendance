@@ -15,6 +15,7 @@ export type Student = Omit<StudentValues, "guardian_phone"> & {
   qr_token: string;
   guardian_phone: string | null;
   photo_path: string | null;
+  archived_at: string | null;
   created_at: string;
 };
 
@@ -156,5 +157,27 @@ export async function saveStudent(
   } catch {
     await discardUpload();
     return failure("The student could not be saved. Please try again.");
+  }
+}
+
+export type ArchiveState = { error: string };
+type ArchiveResult = { success: true } | { success: false; state: ArchiveState };
+
+export async function setStudentArchived(
+  supabase: SupabaseClient, staff: StaffIdentity, studentId: string, archived: boolean,
+): Promise<ArchiveResult> {
+  const failure = (error: string): ArchiveResult => ({ success: false, state: { error } });
+  if (staff.role !== "admin") return failure("Only administrators can archive or restore students.");
+  if (!isStudentId(studentId) || typeof archived !== "boolean") return failure("Choose a valid student and archive action.");
+  try {
+    const { data, error } = await supabase.rpc("set_student_archived", { p_student_id: studentId, p_archived: archived });
+    if (error?.code === "PGRST202") return failure("Archiving is not ready. Apply the student archive migration in Supabase first.");
+    if (error) return failure("We couldn’t confirm this change. Reload the student profile to check its status before trying again.");
+    if (data?.status === "denied") return failure("Only administrators can archive or restore students.");
+    if (data?.status === "unknown") return failure("The student record could not be found.");
+    if (data?.status !== (archived ? "archived" : "restored")) return failure("We couldn’t confirm this change. Reload the student profile to check its status before trying again.");
+    return { success: true };
+  } catch {
+    return failure("We couldn’t confirm this change. Reload the student profile to check its status before trying again.");
   }
 }

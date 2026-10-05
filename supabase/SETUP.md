@@ -20,6 +20,10 @@ Staff explicitly choose **Time In** or **Time Out**. The database serializes sca
 
 For guardian SMS, next apply `migrations/202610020001_guardian_sms.sql` in a new query. It preserves existing records and adds a disabled-by-default notification queue; no historical SMS are created. Follow [the SMSGate setup guide](SMS_SETUP.md) for Android configuration, private environment variables, enabling SMS, and an intended live test.
 
+For student archiving, apply the complete contents of `migrations/202610050001_student_archive.sql` in a **new SQL Editor query before deploying the archive UI**. This adds `students.archived_at`, the administrator-only archive/restore function, and a scan check that rejects archived students. Existing records and enrollment statuses are preserved. Do not rerun the initial schema or older attendance migration after this update, since the older attendance function has no archive check.
+
+To use it, open a supplied student's profile as an administrator, select **Archive student**, and confirm. Find archived profiles with **Students → Show → Archived students**. **Restore student** keeps the profile's current active/inactive enrollment status. Archiving itself sends no SMS. Verify any live archive/restore changes using intended owner-supplied records; automated tests exercise these flows only in isolated PostgreSQL.
+
 ## 2. Create private photo storage
 
 In **Storage**, create a bucket whose name/ID is exactly `student-photos`. Keep **Public bucket** off. Set the maximum file size to **5 MB** and allow **image/jpeg**, **image/png**, and **image/webp**. The migration includes staff read and admin write policies for this bucket. Store the object path in `students.photo_path`; the app should create temporary signed URLs when displaying photos.

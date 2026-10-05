@@ -39,6 +39,17 @@ test('invalid input never calls the database', async () => {
   assert.equal(result.status, 'invalid');
 });
 
+test('archived scan responses remain visible as rejected scans with the current student photo', async () => {
+  const result = await recordScan({
+    async rpc() { return { data: { status: 'archived', message: 'Restore the student before recording new scans.', student: { archived_at: '2026-10-05T00:00:00Z', photo_path: 'students/fixture.png' } } }; },
+    storage: { from() { return { async createSignedUrl() { return { data: { signedUrl: 'https://example.test/photo' } }; } }; } },
+  }, token, 'TIME_IN');
+  assert.equal(result.status, 'archived');
+  assert.equal(result.photoUrl, 'https://example.test/photo');
+  assert.ok(result.student.archived_at);
+  assert.equal(result.scanned_at, undefined);
+});
+
 test('scan RPC receives only reference and mode; a photo failure preserves a successful record', async () => {
   let called = false;
   const result = await recordScan({
